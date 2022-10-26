@@ -1,0 +1,67 @@
+AWSTemplateFormatVersion: 2010-09-09
+
+Parameters:
+  BucketName:
+    Type: String
+    Default: new-alphadiallo-8094
+
+Resources:
+  S3Hosting:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: new-alphadiallo-8094
+      WebsiteConfiguration:
+        ErrorDocument: 404.html
+        IndexDocument: index.html
+
+  S3HostingBucketPolicy:
+    Type: AWS::S3::BucketPolicy
+    Properties:
+      Bucket: !Ref S3Hosting
+      PolicyDocument:
+        Id: MyPolicy
+        Version: 2012-10-17
+        Statement:
+          - Sid: AllowLegacyOAIReadOnly
+            Effect: Allow
+            Principal: "*"
+            Action: "s3:GetObject"
+            Resource: !Sub "arn:aws:s3:::${S3Hosting}/*"
+
+  myDistribution:
+    Type: AWS::CloudFront::Distribution
+    Properties:
+      DistributionConfig:
+        Origins:
+        - DomainName: !Join ['', [!Ref BucketName, '.s3.us-east-1.amazonaws.com']]
+          Id: myS3Origin
+          S3OriginConfig:
+            OriginAccessIdentity: !Join ['', ['origin-access-identity/cloudfront/', !Ref CloudFrontOriginAccessIdentity]]
+
+        Comment: Well done
+        Enabled: 'true'
+        DefaultRootObject: index.html
+
+        DefaultCacheBehavior:
+          AllowedMethods:
+          - DELETE
+          - GET
+          - HEAD
+          - OPTIONS
+          - PATCH
+          - POST
+          - PUT
+          TargetOriginId: myS3Origin
+          ForwardedValues:
+            QueryString: 'false'
+            Cookies:
+              Forward: none
+          ViewerProtocolPolicy: allow-all
+        ViewerCertificate:
+          CloudFrontDefaultCertificate: 'true'
+
+  CloudFrontOriginAccessIdentity:
+      Type: AWS::CloudFront::CloudFrontOriginAccessIdentity
+      Properties:
+        CloudFrontOriginAccessIdentityConfig:
+          Comment: !Sub 'CloudFront OAI for '
